@@ -1,0 +1,28 @@
+version: "3.9"
+
+# SaaS overlay: adds Nginx reverse proxy, enables multi-tenant mode
+# Usage: docker-compose -f docker-compose.yml -f docker-compose.saas.yml up
+
+services:
+  backend:
+    environment:
+      DEPLOYMENT_MODE: saas
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4"
+
+  nginx:
+    image: nginx:1.25-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+      - frontend
+
+  celery_worker:
+    deploy:
+      replicas: 2
